@@ -320,13 +320,15 @@ class sequence_set(object):
             # so just do it in the Process part instead. For reference:
             # FeatureLocation(start=f.location.start, end=f.location.end, strand=1)
             self.reference.genes = {
-                sequence_set.get_gene_name(f.qualifiers['gene'][0], genes): {"start": int(f.location.start), "end": int(f.location.end), "strand": 1}
+                sequence_set.get_gene_name(f.qualifiers['gene'][0], genes): {"start": int(f.location.start), "end": int(f.location.end), "strand": int(f.location.strand), "translation": f.qualifiers['translation'][0]}
                 for f in self.reference.features
-                if 'gene' in f.qualifiers and f.qualifiers['gene'][0] in genes
+                if 'gene' in f.qualifiers and f.qualifiers['gene'][0] in genes and 'translation' in f.qualifiers
             }
+            if len(self.reference.genes) <= len(genes):
+                self.log.notify("Not all genes specified by reference were read in, possibly because of missing translaton.")
         else:
             self.reference.genes = {}
-
+        
         # use the supplied metadata dict to define attributes
         seq_attr_keys = self.seqs.values()[0].attributes.keys()
         self.reference.attributes = {k:fix_names(v) for k,v in metadata.items() if k in seq_attr_keys}

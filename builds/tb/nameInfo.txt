@@ -1,0 +1,64 @@
+#How do we create the fasta header fields for samples?
+#Note that it is misleading from file below! Fields 1, 7, & 9 are missing!!
+#So prepare accordingly.....
+
+
+#from zika.prepare.py
+"header_fields": {0:'strain', 2:'accession', 3:'date', 4:'region', 5:'country',
+				6:'division', 8:'db', 10:'authors', 11:'url', 12:'title',
+				13: 'journal', 14: 'paper_url'},
+
+#example from zika files
+>DOM/2016/MA_WGS16_020zikaKY7854602016-06-30north_americadominican_republicdominican_republicdominican_republicgenbankgenomeMetsky et alhttps://www.ncbi.nlm.nih.gov/nuccore/KY785460
+
+#real tb data
+
+AP018033
+tb
+AP018033
+2007-09-05
+southeast_asia
+vietnam
+hanoi
+genbank
+genome
+Wada et al
+https://www.ncbi.nlm.nih.gov/nuccore/AP018033
+
+AP018035
+tb
+AP018035
+2008-07-18
+southeast_asia
+vietnam
+hanoi
+genbank
+genome
+Wada et al
+https://www.ncbi.nlm.nih.gov/nuccore/AP018035
+
+AP018036
+tb
+AP018036
+2009-03-24
+southeast_asia
+vietnam
+hanoi
+genbank
+genome
+Wada et al
+https://www.ncbi.nlm.nih.gov/nuccore/AP018036
+
+AP018034
+tb
+AP018034
+2008-04-18
+southeast_asia
+vietnam
+hanoi
+genbank
+genome
+Wada et al
+https://www.ncbi.nlm.nih.gov/nuccore/AP018034
+
+

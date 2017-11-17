@@ -394,8 +394,10 @@ class tree(object):
         from Bio import Seq
 
         # Sort proteins by start position of the corresponding SeqFeature entry.
+        print("sorting proteins")
         sorted_proteins = sorted(self.proteins.items(), key=lambda protein_pair: protein_pair[1].start)
 
+        print("About to start protein translate loop")
         for node in self.tree.find_clades(order='preorder'):
             if not hasattr(node, "translations"):
                 # Maintain genomic order of protein translations for easy
@@ -404,6 +406,7 @@ class tree(object):
                 node.aa_mutations = {}
 
             for prot, feature in sorted_proteins:
+                print("Translating protein " + prot)
                 node.translations[prot] = Seq.translate(str(feature.extract(Seq.Seq("".join(node.sequence)))).replace('-', 'N'))
 
                 if node.up is None:

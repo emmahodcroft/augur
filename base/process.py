@@ -474,7 +474,7 @@ class process(object):
         (2) If newick file doesn't exist or isn't valid: build a newick tree (normally RAxML)
         (3) Make a TimeTree
         '''
-        self.tree = tree(aln=self.seqs.aln, proteins=self.proteins, verbose=self.config["subprocess_verbosity_level"])
+        self.tree = tree(aln=self.seqs.aln, proteins=self.proteins, verbose=10) #verbose=self.config["subprocess_verbosity_level"])
         newick_file = self.output_path + ".newick"
         if self.try_to_restore and os.path.isfile(newick_file) and self.tree.check_newick(newick_file):
             self.log.notify("Newick file \"{}\" can be used to restore".format(newick_file))
@@ -560,8 +560,10 @@ class process(object):
             # self.tree.ancestral(**kwargs) instead of self.tree.timetree
             self.tree.save_timetree(fprefix=self.output_path, ttopts=self.config["timetree_options"], cfopts=self.config["clock_filter"])
 
+        self.log.notify("adding translations")
         self.tree.add_translations()
         self.tree.refine()
+        self.log.notify("refining")
         self.tree.layout()
 
 
