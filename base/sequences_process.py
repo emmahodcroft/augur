@@ -6,7 +6,7 @@ from io_util import make_dir, remove_dir, write_json
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
+from Bio.Alphabet import generic_dna, generic_protein
 from Bio.SeqFeature import FeatureLocation
 from Bio.Data.CodonTable import TranslationError
 from Bio.Seq import CodonTable
@@ -66,7 +66,8 @@ def safe_translate(sequence, report_exceptions=False):
 
         # Any other codon like '-AA' or 'NNT' etc will fail. Translate codons
         # one by one.
-        codon_table  = CodonTable.ambiguous_dna_by_name['Standard'].forward_table
+        #codon_table  = CodonTable.ambiguous_dna_by_name['Standard'].forward_table
+        codon_table  = CodonTable.ambiguous_dna_by_name['Bacterial'].forward_table
         str_seq = str(sequence)
         codons = np.fromstring(str_seq[:len(str_seq) - len(str_seq) % 3], dtype='S3')
         assert len(codons) > 0
@@ -120,7 +121,8 @@ class sequence_set(object):
         self.reference_seq = SeqRecord(Seq(reference["seq"], generic_dna),
                id=name, name=name, description=name)
         if "genes" in reference and len(reference["genes"]):
-            self.proteins = {k:FeatureLocation(start=v["start"], end=v["end"], strand=v["strand"]) for k, v in reference["genes"].iteritems()}
+            #self.proteins = {k:FeatureLocation(start=v["start"], end=v["end"], strand=v["strand"]) for k, v in reference["genes"].iteritems()}
+            self.proteins = {k:SeqRecord(Seq(v["translation"],generic_protein), id=k, name=k, features= [FeatureLocation(start=v["start"], end=v["end"], strand=v["strand"])]) for k, v in reference["genes"].iteritems()} 
         else:
             self.proteins = None
 
@@ -257,7 +259,8 @@ class sequence_set(object):
         make alignments of translations.
         '''
         from Bio.Seq import CodonTable
-        codon_table  = CodonTable.ambiguous_dna_by_name['Standard'].forward_table
+        #codon_table  = CodonTable.ambiguous_dna_by_name['Standard'].forward_table
+        codon_table  = CodonTable.ambiguous_dna_by_name['Bacterial'].forward_table
         self.translations={}
         if not hasattr(self, "proteins"): # ensure dictionary to hold annotation
             self.proteins={}
@@ -267,12 +270,15 @@ class sequence_set(object):
             self.proteins.update({'cds':FeatureLocation(start=0,
                 end=self.aln.get_alignment_length(), strand=1)})
 
+        import time
+        start=time.time()
         # loop over all proteins and create one MSA for each
         for prot in self.proteins:
             aa_seqs = []
             for seq in self.aln:
-                tmpseq = self.proteins[prot].extract(seq)
-                translated_seq, translation_exception = safe_translate(str(tmpseq.seq), report_exceptions=True)
+                tmpseq = self.proteins[prot].features[0].extract(seq)
+                #translated_seq, translation_exception = safe_translate(str(tmpseq.seq), report_exceptions=True)
+                translated_seq, translation_exception = self.quick_translate(prot, str(tmpseq.seq), report_exceptions=True)
                 if translation_exception:
                     self.log.notify("Trouble translating because of invalid codons %s" % seq.id)
 
@@ -282,6 +288,8 @@ class sequence_set(object):
                 tmpseq.attributes = seq.attributes
                 aa_seqs.append(tmpseq)
             self.translations[prot] = MultipleSeqAlignment(aa_seqs)
+        end=time.time()
+        print(end-start)
 
     def clock_filter(self, root_seq=None, n_iqd=3, max_gaps = 1.0, plot=False):
         '''
@@ -361,3 +369,42 @@ class sequence_set(object):
                 entropy_json[feat] = {'pos':[x for x in self.proteins[feat]][::3],
                                       'codon':[(x-self.proteins[feat].start)//3 for x in self.proteins[feat]][::3], 'val':S}
         write_json(entropy_json, fname, indent=indent)
+
+    def quick_translate(self, prot, tmpseqStr, report_exceptions=False):
+        '''
+        make translations by copying from the reference translation and only
+        changing codons where the nucelotides differ from the reference
+        calls safe_translate to ensure proper translation
+        EBH 20 Nov 17
+        '''
+        #get the reference alignment
+        refseq = self.proteins[prot].features[0].extract(self.reference_aln)
+        refseqStr = str(refseq.seq)
+        
+        #get diffs in the two nuc seqs
+        diff = [i for i in xrange(len(refseqStr)) if tmpseqStr[i] != refseqStr[i] ]
+        
+        #get real translation
+        refTrans = self.proteins[prot].seq
+        refTransStr = str(refTrans)
+        
+        if len(diff)==0:
+            tempTrans = refTransStr
+        else:
+            #get the codon position and the 'new' codon	
+            aaRepLocs = {i//3:safe_translate(tmpseqStr[(i-i%3):(i+3-i%3)])
+                for i in diff}
+
+            #copy real translation, replacing codons in aaRepLocs
+            val = [ aaRepLocs[key] if key in aaRepLocs.keys() else refTransStr[key] for key in xrange(len(refTransStr)) ]
+            #convert to a string with no spaces
+            tempTrans = "".join(val)
+        
+        if report_exceptions:
+            translation_exception = False
+            excepts = [safe_translate(tmpseqStr[(i-i%3):(i+3-i%3)], report_exceptions=True)[1]
+                for i in diff]
+            translation_exception = any(excepts)==True
+            return tempTrans, translation_exception
+        else:
+            return tempTrans 
