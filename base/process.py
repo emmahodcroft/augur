@@ -561,9 +561,9 @@ class process(object):
             self.tree.save_timetree(fprefix=self.output_path, ttopts=self.config["timetree_options"], cfopts=self.config["clock_filter"])
 
         self.log.notify("adding translations")
-        self.tree.add_translations()
-        self.tree.refine()
+        self.tree.add_translations(self.seqs.reference_aln)
         self.log.notify("refining")
+        self.tree.refine()
         self.tree.layout()
 
 

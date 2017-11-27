@@ -289,7 +289,7 @@ class sequence_set(object):
                 aa_seqs.append(tmpseq)
             self.translations[prot] = MultipleSeqAlignment(aa_seqs)
         end=time.time()
-        print(end-start)
+        print("Tip protein translation took {} seconds".format(end-start))
 
     def clock_filter(self, root_seq=None, n_iqd=3, max_gaps = 1.0, plot=False):
         '''
@@ -366,8 +366,8 @@ class sequence_set(object):
             if feat=='nuc':
                 entropy_json[feat] = {'pos':range(0,n), 'codon':[x//3 for x in range(0,n)], 'val':S}
             else:
-                entropy_json[feat] = {'pos':[x for x in self.proteins[feat]][::3],
-                                      'codon':[(x-self.proteins[feat].start)//3 for x in self.proteins[feat]][::3], 'val':S}
+                entropy_json[feat] = {'pos':[x for x in self.proteins[feat].features[0]][::3],
+                                      'codon':[(x-self.proteins[feat].features[0].start)//3 for x in self.proteins[feat].features[0]][::3], 'val':S}
         write_json(entropy_json, fname, indent=indent)
 
     def quick_translate(self, prot, tmpseqStr, report_exceptions=False):

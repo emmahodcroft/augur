@@ -386,7 +386,7 @@ class tree(object):
                 states.append(node.attr[get_attr])
         return states
 
-    def add_translations(self):
+    def add_translations(self, reference_aln):
         '''
         translate the nucleotide sequence into the proteins specified
         in self.proteins. these are expected to be SeqFeatures
@@ -395,9 +395,13 @@ class tree(object):
 
         # Sort proteins by start position of the corresponding SeqFeature entry.
         print("sorting proteins")
-        sorted_proteins = sorted(self.proteins.items(), key=lambda protein_pair: protein_pair[1].start)
-
+        #sorted_proteins = sorted(self.proteins.items(), key=lambda protein_pair: protein_pair[1].start)
+        sorted_proteins = sorted(self.proteins.items(), key=lambda protein_pair: protein_pair[1].features[0].start)
+        
         print("About to start protein translate loop")
+        import time
+        start = time.time()
+        
         for node in self.tree.find_clades(order='preorder'):
             if not hasattr(node, "translations"):
                 # Maintain genomic order of protein translations for easy
@@ -405,9 +409,13 @@ class tree(object):
                 node.translations=OrderedDict()
                 node.aa_mutations = {}
 
-            for prot, feature in sorted_proteins:
-                print("Translating protein " + prot)
-                node.translations[prot] = Seq.translate(str(feature.extract(Seq.Seq("".join(node.sequence)))).replace('-', 'N'))
+            for prot, seqrec in sorted_proteins:
+                feature = seqrec.features[0]
+                tmpseqStr = str(feature.extract(Seq.Seq("".join(node.sequence)))).replace('-', 'N')
+                refseqStr = str(self.proteins[prot].features[0].extract(reference_aln).seq).replace('-', 'N')
+                
+                node.translations[prot] = self.quick_translate(prot, tmpseqStr, refseqStr)
+                #node.translations[prot] = Seq.translate(str(feature.extract(Seq.Seq("".join(node.sequence)))).replace('-', 'N'))
 
                 if node.up is None:
                     node.aa_mutations[prot] = []
@@ -415,7 +423,9 @@ class tree(object):
                     node.aa_mutations[prot] = [(a,pos,d) for pos, (a,d) in
                                                enumerate(zip(node.up.translations[prot],
                                                              node.translations[prot])) if a!=d]
-
+            end = time.time()
+            
+        print("All node protein translation took {} seconds".format(end-start))
         self.dump_attr.append('translations')
 
 
@@ -531,7 +541,38 @@ class tree(object):
 
         write_json(elems, sequence_fname, indent=indent)
 
+    def quick_translate(self, prot, tmpseqStr, refseqStr):
+        '''
+        make translations by copying from the reference translation and only
+        changing codons where the nucelotides differ from the reference
+        unlike version in sequences_process.py does not use safe_translate,
+        as gaps (-) are already replaced with N. 
+        EBH 22 Nov 17
+        '''
+        from Bio.Seq import Seq
+        
+        #get diffs in the two nuc seqs
+        diff = [i for i in xrange(len(refseqStr)) if tmpseqStr[i] != refseqStr[i] ]
+        
+        #get real translation
+        refTrans = self.proteins[prot].seq
+        refTransStr = str(refTrans)
+        
+        if len(diff)==0:
+            tempTrans = refTransStr
+        else:
+            #get the codon position and the 'new' codon	
+            aaRepLocs = {i//3:str(Seq(tmpseqStr[(i-i%3):(i+3-i%3)]).translate())
+                for i in diff}
+                
+            #copy real translation, replacing codons in aaRepLocs
+            val = [ aaRepLocs[key] if key in aaRepLocs.keys() else refTransStr[key] for key in xrange(len(refTransStr)) ]
+            #convert to a string with no spaces
+            tempTrans = "".join(val)
+            
+        return tempTrans 
 
+        
 # if __name__=="__main__":
 #     from Bio import SeqIO
 #     from sequences import sequence_set

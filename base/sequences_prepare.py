@@ -325,7 +325,7 @@ class sequence_set(object):
                 if 'gene' in f.qualifiers and f.qualifiers['gene'][0] in genes and 'translation' in f.qualifiers
             }
             if len(self.reference.genes) <= len(genes):
-                self.log.notify("Not all genes specified by reference were read in, possibly because of missing translaton.")
+                self.log.notify("Not all genes specified by reference were read in, possibly because of missing translaton, or because config lists a subset.")
         else:
             self.reference.genes = {}
         
