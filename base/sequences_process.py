@@ -381,22 +381,34 @@ class sequence_set(object):
         refseq = self.proteins[prot].features[0].extract(self.reference_aln)
         refseqStr = str(refseq.seq)
         
-        #get diffs in the two nuc seqs
-        diff = [i for i in xrange(len(refseqStr)) if tmpseqStr[i] != refseqStr[i] ]
-        
         #get real translation
         refTrans = self.proteins[prot].seq
         refTransStr = str(refTrans)
         
-        if len(diff)==0:
-            tempTrans = refTransStr
+        #if they are the same, waste no time, return!
+        if refseqStr == tmpseqStr:
+            if report_exceptions:
+                return refTransStr, False
+            else:
+                return refTransStr 
+        
         else:
+            #get diffs in the two nuc seqs
+            diff = [i for i in xrange(len(refseqStr)) if tmpseqStr[i] != refseqStr[i] ]
+
             #get the codon position and the 'new' codon	
             aaRepLocs = {i//3:safe_translate(tmpseqStr[(i-i%3):(i+3-i%3)])
                 for i in diff}
-
+            
+            #if the last AA has a mutation and its a stop codon, ignore!
+            #Because the stop codon is not included in the GB protein translation!
+            #(so this causes an out-of-bounds error!)
+            if len(refTransStr) in aaRepLocs and str(Seq(refseqStr[-3:]).translate(gap="-"))=="*":
+                del aaRepLocs[len(refTransStr)]
+            
             #copy real translation, replacing codons in aaRepLocs
-            val = [ aaRepLocs[key] if key in aaRepLocs.keys() else refTransStr[key] for key in xrange(len(refTransStr)) ]
+            val = np.array(list(refTransStr), 'S1')
+            for key,base in aaRepLocs.iteritems(): val[key] = base 
             #convert to a string with no spaces
             tempTrans = "".join(val)
         
